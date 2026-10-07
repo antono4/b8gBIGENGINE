@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run tests
+        run: npm test
+      - name: Smoke-test the CLI
+        run: node bin/b8g.mjs demo
+      - name: Smoke-test the server
+        run: |
+          node bin/b8g.mjs serve --port 12000 &
+          sleep 2
+          curl -sf http://localhost:12000/api/status > /dev/null
+          curl -sf -X POST http://localhost:12000/api/compile \
+            -H 'content-type: application/json' \
+            -d '{"language":"ecmascript","source":"function f(){return 1;} f();"}' > /dev/null

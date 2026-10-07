@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>b8g — Big Engine</title>
+<meta name="description" content="b8g Big Engine: capability-based component engine with a binary instruction stack, snapshot format and a Universal Compiler Feedback Interface for LLVM/GCC/V8/GraalVM." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230c0e11'/%3E%3Cpath d='M7 6h7a5 5 0 0 1 0 10H7zM7 16h8a5 5 0 0 1 0 10H7z' fill='none' stroke='%23b6ff3d' stroke-width='2'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">b8g</span>
+    <span class="brand-sub">BIG&nbsp;ENGINE<span class="blink">_</span></span>
+  </div>
+
+  <div class="status-strip" id="status-strip">
+    <span class="chip" id="chip-state"><i class="dot"></i>connecting</span>
+    <span class="chip" id="chip-uptime">uptime —</span>
+    <span class="chip" id="chip-clock">clock —</span>
+    <span class="chip" id="chip-mem">mem —</span>
+    <span class="chip" id="chip-components">components —</span>
+  </div>
+
+  <div class="topbar-actions">
+    <button class="btn ghost" id="btn-refresh" title="Refresh engine status">refresh</button>
+    <button class="btn" id="btn-demo" title="Run the full pipeline">run pipeline</button>
+  </div>
+</header>
+
+<nav class="rail" id="rail">
+  <button class="rail-item active" data-panel="overview"><span class="idx">01</span>overview</button>
+  <button class="rail-item" data-panel="compiler"><span class="idx">02</span>compiler</button>
+  <button class="rail-item" data-panel="audit"><span class="idx">03</span>audit</button>
+  <button class="rail-item" data-panel="stack"><span class="idx">04</span>stack&nbsp;vm</button>
+  <button class="rail-item" data-panel="snapshot"><span class="idx">05</span>snapshot</button>
+  <button class="rail-item" data-panel="caps"><span class="idx">06</span>capabilities</button>
+</nav>
+
+<main class="stage">
+
+  <!-- 01 OVERVIEW -->
+  <section class="panel active" id="panel-overview">
+    <div class="panel-head">
+      <h1>Engine overview</h1>
+      <p>Kernel, capability components and shared-memory regions currently live in the running engine.</p>
+    </div>
+
+    <div class="metric-row">
+      <div class="metric"><span class="metric-k">components</span><span class="metric-v" id="m-components">—</span></div>
+      <div class="metric"><span class="metric-k">regions</span><span class="metric-v" id="m-regions">—</span></div>
+      <div class="metric"><span class="metric-k">allocated</span><span class="metric-v" id="m-alloc">—</span></div>
+      <div class="metric"><span class="metric-k">streams</span><span class="metric-v" id="m-streams">—</span></div>
+      <div class="metric"><span class="metric-k">events</span><span class="metric-v" id="m-events">—</span></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Memory regions</h2><span class="tag">shared / private</span></div>
+        <div id="region-list" class="list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Kernel event bus</h2><span class="tag" id="event-count">0</span></div>
+        <div id="event-log" class="event-log"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Composition graph</h2><span class="tag">kernel &rarr; components</span></div>
+      <div id="composition" class="composition"></div>
+    </div>
+  </section>
+
+  <!-- 02 COMPILER -->
+  <section class="panel" id="panel-compiler">
+    <div class="panel-head">
+      <h1>Universal compiler feedback</h1>
+      <p>One normalised feedback document across LLVM, GCC, V8 and GraalVM. Choose a pipeline, feed it a unit, read the remarks.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Input unit</h2>
+        <span class="tag" id="adapter-count">—</span>
+      </div>
+      <div class="controls">
+        <label>language
+          <select id="lang">
+            <option value="ecmascript">ecmascript</option>
+            <option value="typescript">typescript</option>
+            <option value="c">c</option>
+            <option value="cpp">cpp</option>
+            <option value="rust">rust</option>
+            <option value="java">java</option>
+          </select>
+        </label>
+        <label>pipeline
+          <select id="pipeline">
+            <option value="">auto (by language)</option>
+            <option value="v8">v8</option>
+            <option value="llvm">llvm</option>
+            <option value="gcc">gcc</option>
+            <option value="graalvm">graalvm</option>
+            <option value="v8,graalvm">v8 → graalvm</option>
+            <option value="llvm,gcc">llvm → gcc</option>
+          </select>
+        </label>
+        <button class="btn" id="btn-compile">compile</button>
+      </div>
+      <textarea id="source" spellcheck="false"></textarea>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Diagnostics</h2><span class="tag" id="diag-count">—</span></div>
+        <div id="diag-list" class="list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Optimisation remarks</h2><span class="tag" id="remark-count">—</span></div>
+        <div id="remark-list" class="list"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Artifacts</h2><span class="tag">emitted by passes</span></div>
+      <div id="artifact-list" class="list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Adapter matrix</h2><span class="tag">capabilities</span></div>
+      <div id="adapter-table" class="adapter-table"></div>
+    </div>
+  </section>
+
+  <!-- 03 AUDIT -->
+  <section class="panel" id="panel-audit">
+    <div class="panel-head">
+      <h1>Capability audit</h1>
+      <p>The audit component scans a unit for hazards that matter once code runs isolated: dynamic scope, ambient authority, unbounded loops, direct allocation, process and network access.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Unit under audit</h2><span class="tag" id="risk-badge">risk —</span></div>
+      <div class="controls">
+        <button class="btn" id="btn-audit">audit</button>
+        <button class="btn ghost" id="btn-audit-sample">load hazard sample</button>
+      </div>
+      <textarea id="audit-source" spellcheck="false"></textarea>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Findings</h2><span class="tag" id="finding-count">—</span></div>
+        <div id="finding-list" class="list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Audit stream</h2><span class="tag">shared memory record</span></div>
+        <pre id="audit-record" class="code-block">run an audit to see the record written into the shared heap region</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 STACK VM -->
+  <section class="panel" id="panel-stack">
+    <div class="panel-head">
+      <h1>Binary stack VM</h1>
+      <p>Assemble an offset-addressed instruction image, then execute it inside the capability-isolated runner component.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Program</h2><span class="tag">array of [op, ...operands]</span></div>
+      <div class="controls">
+        <button class="btn" id="btn-assemble">assemble</button>
+        <button class="btn" id="btn-execute">execute</button>
+        <label class="check"><input type="checkbox" id="trace" /> trace</label>
+      </div>
+      <textarea id="program" spellcheck="false"></textarea>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Listing</h2><span class="tag" id="listing-size">—</span></div>
+        <div id="listing" class="listing"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Execution</h2><span class="tag" id="run-reason">—</span></div>
+        <div class="stack-tape" id="stack-tape"></div>
+        <pre id="run-result" class="code-block">execute the program to see the stack tape</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 SNAPSHOT -->
+  <section class="panel" id="panel-snapshot">
+    <div class="panel-head">
+      <h1>Snapshot</h1>
+      <p>A snapshot is the engine state serialised into one offset-addressed binary blob: a 128-byte header, JSON sections and raw region bytes.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Capture</h2><span class="tag">b8g snapshot format v1</span></div>
+      <div class="controls">
+        <button class="btn" id="btn-snapshot">capture snapshot</button>
+        <button class="btn ghost" id="btn-download" disabled>download .b8g</button>
+      </div>
+      <div class="header-grid" id="snapshot-header"></div>
+      <div class="byte-strip" id="byte-strip"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>Section map</h2><span class="tag">payload layout</span></div>
+        <div id="section-map" class="list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Serialised state</h2><span class="tag">decoded</span></div>
+        <pre id="snapshot-json" class="code-block">capture a snapshot to decode its sections</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 CAPABILITIES -->
+  <section class="panel" id="panel-caps">
+    <div class="panel-head">
+      <h1>Capability table</h1>
+      <p>Every handle couples a target with a rights mask. A component can only touch what it was explicitly granted — and grants may never amplify rights.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Handles</h2><span class="tag" id="handle-count">—</span></div>
+      <div id="handle-table" class="handle-table"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Rights legend</h2></div>
+      <div class="legend" id="rights-legend"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="streambar">
+  <span class="streambar-label">live bus</span>
+  <div class="streambar-track" id="stream-track"></div>
+</footer>
+
+<script src="/assets/app.js" type="module"></script>
+</body>
+</html>

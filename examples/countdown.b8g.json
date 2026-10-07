@@ -1,0 +1,15 @@
+[
+  ["PUSH", 10],
+  ["STORE", 0],
+  "loop:",
+  ["LOAD", 0],
+  ["JZ", "done"],
+  ["LOAD", 0],
+  ["PUSH", 1],
+  ["SUB"],
+  ["STORE", 0],
+  ["JMP", "loop"],
+  "done:",
+  ["LOAD", 0],
+  ["HALT"]
+]

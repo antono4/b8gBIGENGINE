@@ -1,0 +1,47 @@
+{
+  "name": "b8g",
+  "version": "0.1.0",
+  "description": "b8g (Big Engine) - Capability-based component engine with a binary instruction stack, snapshot format and a Universal Compiler Feedback Interface for LLVM/GCC/V8/GraalVM.",
+  "type": "module",
+  "license": "Unlicense",
+  "bin": {
+    "b8g": "./bin/b8g.mjs"
+  },
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./runtime": "./src/runtime/index.mjs",
+    "./compiler": "./src/compiler/index.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "public",
+    "examples",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node bin/b8g.mjs serve --port 12000",
+    "demo": "node bin/b8g.mjs demo",
+    "compile": "node bin/b8g.mjs compile",
+    "snapshot": "node bin/b8g.mjs snapshot",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "b8g",
+    "stealify",
+    "capability",
+    "component",
+    "shared-memory",
+    "snapshot",
+    "compiler-feedback",
+    "llvm",
+    "gcc",
+    "v8",
+    "graalvm"
+  ]
+}
