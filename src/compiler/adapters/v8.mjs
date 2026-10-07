@@ -1,9 +1,6 @@
-import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { CompilerAdapter, Diagnostic, Remark, Feedback, Severity } from '../feedback.mjs';
 import { analyze } from './analyze.mjs';
+import { nodeTools } from './node-tools.mjs';
 
 /**
  * V8 adapter.
@@ -12,16 +9,21 @@ import { analyze } from './analyze.mjs';
  * bytecode for ECMAScript units, then derives feedback (bytecode size,
  * function count, deopt risk) from it. This is the adapter that makes b8g's
  * "v8 compatible snapshots" claim concrete: the feedback is V8's own.
+ *
+ * Outside Node (e.g. in the browser console) there is no child process to
+ * drive, so the adapter degrades to modelled feedback from the static analyser.
  */
 export class V8Adapter extends CompilerAdapter {
   constructor(opts = {}) {
     super('v8');
     this.timeoutMs = opts.timeoutMs ?? 10_000;
+    this.tools = nodeTools();
     this.available = this._detect();
   }
 
   _detect() {
-    const probe = spawnSync(process.execPath, ['--version'], { encoding: 'utf8' });
+    if (!this.tools) return false;
+    const probe = this.tools.spawnSync(this.tools.execPath, ['--version'], { encoding: 'utf8' });
     return probe.status === 0;
   }
 
@@ -42,12 +44,12 @@ export class V8Adapter extends CompilerAdapter {
     const timings = { frontendMs: 0, optimizeMs: 0, codegenMs: 0 };
 
     if (this.available) {
-      const dir = mkdtempSync(join(tmpdir(), 'b8g-v8-'));
-      const file = join(dir, 'unit.mjs');
+      const dir = this.tools.mkdtempSync(this.tools.join(this.tools.tmpdir(), 'b8g-v8-'));
+      const file = this.tools.join(dir, 'unit.mjs');
       const start = Date.now();
       try {
-        writeFileSync(file, unit.source);
-        const res = spawnSync(process.execPath, ['--print-bytecode', file], {
+        this.tools.writeFileSync(file, unit.source);
+        const res = this.tools.spawnSync(this.tools.execPath, ['--print-bytecode', file], {
           encoding: 'utf8',
           timeout: this.timeoutMs,
           maxBuffer: 16 * 1024 * 1024,
@@ -90,7 +92,7 @@ export class V8Adapter extends CompilerAdapter {
         }
         void facts;
       } finally {
-        rmSync(dir, { recursive: true, force: true });
+        this.tools.rmSync(dir, { recursive: true, force: true });
       }
     }
 

@@ -1,9 +1,12 @@
-import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { CompilerAdapter, Diagnostic, Remark, Feedback, Severity } from '../feedback.mjs';
 import { analyze } from './analyze.mjs';
+
+/**
+ * Node builtins are loaded through `process.getBuiltinModule` rather than a
+ * static `node:` import, so this module also loads in a browser (where it
+ * simply reports the compiler as unavailable). See ./node-tools.mjs.
+ */
+import { nodeTools } from './node-tools.mjs';
 
 const LANGUAGE_FLAGS = {
   c: { compiler: 'gcc', ext: '.c' },
@@ -16,18 +19,20 @@ const LANGUAGE_FLAGS = {
  * Unlike the other adapters this one drives a *real* compiler: it writes the
  * unit to a temp file and runs `gcc -fdiagnostics-format=json`, then folds the
  * machine-readable diagnostics into the normalised feedback shape. When gcc is
- * unavailable it degrades to static analysis so the engine still produces
- * feedback.
+ * unavailable (or we are not running under Node) it degrades to static
+ * analysis so the engine still produces feedback.
  */
 export class GccAdapter extends CompilerAdapter {
   constructor(opts = {}) {
     super('gcc');
     this.timeoutMs = opts.timeoutMs ?? 10_000;
+    this.tools = nodeTools();
     this.available = this._detect();
   }
 
   _detect() {
-    const probe = spawnSync('gcc', ['--version'], { encoding: 'utf8' });
+    if (!this.tools) return false;
+    const probe = this.tools.spawnSync('gcc', ['--version'], { encoding: 'utf8' });
     return probe.status === 0;
   }
 
@@ -60,12 +65,12 @@ export class GccAdapter extends CompilerAdapter {
     }
 
     const { compiler, ext } = LANGUAGE_FLAGS[unit.language];
-    const dir = mkdtempSync(join(tmpdir(), 'b8g-gcc-'));
-    const file = join(dir, `unit${ext}`);
+    const dir = this.tools.mkdtempSync(this.tools.join(this.tools.tmpdir(), 'b8g-gcc-'));
+    const file = this.tools.join(dir, `unit${ext}`);
     const start = Date.now();
     try {
-      writeFileSync(file, unit.source);
-      const res = spawnSync(compiler, ['-fsyntax-only', '-Wall', '-fdiagnostics-format=json', file], {
+      this.tools.writeFileSync(file, unit.source);
+      const res = this.tools.spawnSync(compiler, ['-fsyntax-only', '-Wall', '-fdiagnostics-format=json', file], {
         encoding: 'utf8',
         timeout: this.timeoutMs,
       });
@@ -87,7 +92,7 @@ export class GccAdapter extends CompilerAdapter {
       timings.optimizeMs = 1;
       void facts;
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      this.tools.rmSync(dir, { recursive: true, force: true });
     }
 
     return new Feedback('gcc', unit, { diagnostics, remarks, artifacts, timings });

@@ -201,19 +201,34 @@ composition graph, compiler diagnostics and remarks, capability audit, an
 interactive stack VM with a stack tape, and a snapshot inspector that renders
 the header and payload sections.
 
-It is a static page (`public/`) that talks to the engine over `/api`, so it can
-also be published to GitHub Pages against any reachable engine host — see
-`.github/workflows/pages.yml`.
+It is a static page that **boots the real engine in the browser** — the same
+`src/` modules the CLI and server use, imported as ES modules — so it runs with
+no backend at all. It is published to GitHub Pages at
+<https://antono4.github.io/b8gBIGENGINE/>.
+
+Two things differ from a Node engine, both by design:
+
+- `SharedArrayBuffer` requires cross-origin isolation, which a static host
+  cannot set, so regions fall back to a private buffer (identical API).
+- The GCC and V8 adapters drive child processes, so in the browser they report
+  themselves unavailable and fall back to modelled feedback. Everything else —
+  capability runtime, stack VM, snapshots, LLVM/GraalVM feedback — is the real
+  implementation.
+
+Append `?api=https://host:port` to drive a remote Node engine over HTTP instead,
+which re-enables the measured GCC/V8 adapters.
 
 ## Project layout
 
 ```
 bin/b8g.mjs                 CLI
 src/runtime/                memory, capabilities, contexts, components, VM, snapshots
+src/runtime/api.mjs         the JSON API, shared by the server and the browser engine
 src/compiler/               feedback interface + LLVM/GCC/V8/GraalVM adapters
 src/components/             audit, snapshot, runner reference components
 src/server.mjs              HTTP server + JSON API + SSE
-public/                     web console (static)
+src/browser.mjs             in-page engine entry (used by the console)
+index.html, assets/         web console (static, no build step)
 examples/                   sample units and stack programs
 test/                       node:test suites
 ```

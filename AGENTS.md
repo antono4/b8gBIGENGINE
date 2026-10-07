@@ -47,14 +47,25 @@ Run a single suite: `node --test test/compiler.test.mjs`
   has llvm (modelled), gcc (real `-fdiagnostics-format=json`), v8 (real
   `node --print-bytecode`), graalvm (measured version, modelled phases).
   `analyze.mjs` is the shared static analyser.
-- `src/server.mjs` — JSON API + SSE event bus + static file serving from
-  `public/`.
-- `public/` — static console (no build step). `?api=https://host:port` points it
-  at a remote engine.
+- `src/server.mjs` — JSON API + SSE event bus + static file serving. The repo
+  root is the document root; an allowlist exposes `index.html`, `assets/`,
+  `src/` and `examples/` so the local server mirrors GitHub Pages.
+- `src/runtime/api.mjs` — the JSON API defined once (`apiRoutes`). Both the
+  server and the in-page engine dispatch through it, so they cannot drift.
+- `src/browser.mjs` — in-page engine entry. `index.html` + `assets/` is the
+  static console (no build step); it imports this module and calls the same API
+  table. `?api=https://host:port` switches to a remote engine.
 
 ## Gotchas
 
-- `PUBLIC_DIR` in `src/server.mjs` is `resolve(__dirname, '../public')`.
+- GitHub Pages serves the repo root. `.nojekyll` is required so `.mjs` under
+  `src/` is served verbatim (Jekyll would otherwise skip it).
+- `SharedArrayBuffer` is absent on non-isolated hosts; `MemoryRegion` falls
+  back to `ArrayBuffer` (`typeof SharedArrayBuffer !== 'undefined'`).
+- Node builtins are loaded via `process.getBuiltinModule` in
+  `src/compiler/adapters/node-tools.mjs`, so the gcc/v8/graalvm adapter modules
+  import cleanly in a browser. Do not reintroduce static `node:` imports in
+  anything reachable from `src/browser.mjs`.
 - Snapshot name field is at header offset 32 (64 bytes); section index at 96.
 - VM handle operands are **indices**, not ids — do not reintroduce id encoding.
 - Compiler feedback is deduped across passes by `severity|pass|message` for

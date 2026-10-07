@@ -1,6 +1,6 @@
-import { spawnSync } from 'node:child_process';
 import { CompilerAdapter, Diagnostic, Remark, Feedback, Severity } from '../feedback.mjs';
 import { analyze } from './analyze.mjs';
+import { nodeTools } from './node-tools.mjs';
 
 /**
  * GraalVM adapter.
@@ -97,7 +97,9 @@ function detectJavaVersion() {
 }
 
 function spawnJavaVersion() {
-  const res = spawnSync('java', ['-version'], { encoding: 'utf8' });
+  const tools = nodeTools();
+  if (!tools) return null;
+  const res = tools.spawnSync('java', ['-version'], { encoding: 'utf8' });
   if (res.error || res.status !== 0) return null;
   return res.stderr || res.stdout || '';
 }

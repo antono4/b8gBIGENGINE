@@ -93,6 +93,7 @@ body {
   box-shadow: 0 0 8px var(--amber); vertical-align: middle;
 }
 .chip.ok .dot { background: var(--acid); box-shadow: 0 0 8px var(--acid); }
+.chip.local .dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .chip.bad .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
 
 .topbar-actions { display: flex; gap: 8px; }

@@ -23,8 +23,12 @@ export class MemoryRegion {
     this.size = size;
     this.shared = opts.shared ?? true;
     this.name = opts.name ?? this.id;
+    // SharedArrayBuffer requires cross-origin isolation in most browsers, which
+    // a static host cannot provide. Fall back to a private buffer there: the
+    // region API is identical, only cross-realm sharing is lost.
+    const BufferType = this.shared && typeof SharedArrayBuffer !== 'undefined' ? SharedArrayBuffer : ArrayBuffer;
     /** @type {SharedArrayBuffer|ArrayBuffer} */
-    this.buffer = this.shared ? new SharedArrayBuffer(size) : new ArrayBuffer(size);
+    this.buffer = new BufferType(size);
     this.createdAt = Date.now();
     this.reads = 0;
     this.writes = 0;

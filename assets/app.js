@@ -1,18 +1,27 @@
-/* b8g console — talks to the engine over /api, renders telemetry. */
+/* b8g console — runs the engine in the page, or talks to a remote one. */
 
-/* The console is a static page. It uses a same-origin engine by default, or a
-   remote engine when ?api=https://host:port is supplied (useful when the
-   console is hosted on GitHub Pages and the engine runs elsewhere). */
-const API_BASE = (() => {
-  const q = new URLSearchParams(location.search).get('api');
-  return q ? q.replace(/\/$/, '') : '';
-})();
+/* Default: the page boots the real b8g engine as an ES module (the same code
+   the CLI and HTTP server use) and calls it through the shared API table.
+   Override with ?api=https://host:port to drive a remote engine over HTTP
+   instead — needed only if you want the measured GCC/V8 adapters. */
+const REMOTE = new URLSearchParams(location.search).get('api');
+const API_BASE = REMOTE ? REMOTE.replace(/\/$/, '') : '';
 
-const API = (path, opts) => fetch(`${API_BASE}${path}`, opts).then(async (r) => {
+/** The in-page engine handle, once loaded. Null in remote mode. */
+let local = null;
+
+/** Call an engine API route, whether in-page or remote. */
+async function API(path, opts) {
+  if (local) {
+    const method = (opts?.method ?? 'GET').toUpperCase();
+    const body = opts?.body ? JSON.parse(opts.body) : {};
+    return local.call(method, path, body);
+  }
+  const r = await fetch(`${API_BASE}${path}`, opts);
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
   return data;
-});
+}
 
 const $ = (sel) => document.querySelector(sel);
 const el = (tag, cls, html) => {
@@ -65,8 +74,8 @@ async function refreshStatus() {
     const status = await API('/api/status');
     lastStatus = status;
     const chip = $('#chip-state');
-    chip.className = 'chip ok';
-    chip.innerHTML = '<i class="dot"></i>engine online';
+    chip.className = local ? 'chip local' : 'chip ok';
+    chip.innerHTML = `<i class="dot"></i>${local ? 'engine in-page' : 'engine online'}`;
     $('#chip-uptime').textContent = `uptime ${(status.uptimeMs / 1000).toFixed(1)}s`;
     $('#chip-clock').textContent = `clock ${num(status.clock)}`;
     $('#chip-mem').textContent = `mem ${bytesFmt(status.memory.bytesAllocated)}`;
@@ -444,6 +453,10 @@ async function runPipeline() {
 
 /* ---------------- live bus ---------------- */
 function connectBus() {
+  if (local) {
+    local.subscribe(addLiveEvent);
+    return;
+  }
   try {
     const es = new EventSource(`${API_BASE}/api/events`);
     es.onmessage = (msg) => {
@@ -463,7 +476,21 @@ function addLiveEvent(event) {
 }
 
 /* ---------------- wire up ---------------- */
-function init() {
+function setMode(mode, detail) {
+  const chip = $('#chip-state');
+  chip.className = mode === 'bad' ? 'chip bad' : mode === 'local' ? 'chip local' : 'chip ok';
+  chip.innerHTML = `<i class="dot"></i>${esc(detail)}`;
+}
+
+async function bootLocalEngine() {
+  // Resolve against this module's URL so it works both locally (/assets/app.js
+  // -> /src/browser.mjs) and under the GitHub Pages subpath
+  // (/b8gBIGENGINE/assets/app.js -> /b8gBIGENGINE/src/browser.mjs).
+  const mod = await import(new URL('../src/browser.mjs', import.meta.url));
+  local = mod.bootBrowserEngine();
+}
+
+async function init() {
   $('#source').value = SAMPLE_SOURCE;
   $('#audit-source').value = HAZARD_SOURCE;
   $('#program').value = DEFAULT_PROGRAM;
@@ -485,6 +512,19 @@ function init() {
     a.click();
     URL.revokeObjectURL(a.href);
   });
+
+  if (REMOTE) {
+    setMode('ok', 'remote engine');
+  } else {
+    setMode('local', 'loading engine…');
+    try {
+      await bootLocalEngine();
+      setMode('local', 'engine in-page');
+    } catch (err) {
+      setMode('bad', `engine load failed — ${err.message}`);
+      return;
+    }
+  }
 
   refreshStatus();
   loadAdapters().catch(() => {});

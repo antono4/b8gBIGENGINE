@@ -16,7 +16,8 @@
   "files": [
     "bin",
     "src",
-    "public",
+    "assets",
+    "index.html",
     "examples",
     "LICENSE",
     "README.md"

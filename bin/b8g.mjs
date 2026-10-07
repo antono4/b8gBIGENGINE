@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Engine } from '../src/runtime/engine.mjs';
-import { createB8GServer, DEFAULT_SOURCE, DEFAULT_PROGRAM } from '../src/server.mjs';
+import { createB8GServer } from '../src/server.mjs';
+import { DEFAULT_SOURCE, DEFAULT_PROGRAM } from '../src/runtime/api.mjs';
 import { inspectSnapshot } from '../src/runtime/snapshot.mjs';
 import { OpName, TagName, rightsToString } from '../src/runtime/constants.mjs';
 import { disassemble } from '../src/runtime/isa.mjs';
